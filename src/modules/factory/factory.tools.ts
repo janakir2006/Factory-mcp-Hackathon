@@ -5,6 +5,40 @@ import * as path from 'path';
 
 export class FactoryTools {
   private readonly dbService = new DatabaseService();
+  // Factory location (Kerala, India) used for live weather lookups via Open-Meteo.
+  private static readonly FACTORY_COORDS = { lat: 9.9658, lon: 76.2421 };
+
+  private weatherDescription(code?: number): string {
+    const map: Record<number, string> = {
+      0: 'Clear sky', 1: 'Mainly clear', 2: 'Partly cloudy', 3: 'Overcast',
+      45: 'Fog', 48: 'Rime fog', 51: 'Light drizzle', 53: 'Drizzle', 55: 'Dense drizzle',
+      61: 'Light rain', 63: 'Rain', 65: 'Heavy rain', 71: 'Light snow',
+      80: 'Rain showers', 95: 'Thunderstorm', 96: 'Thunderstorm with hail'
+    };
+    return (code != null && map[code]) ? map[code] : 'Unknown';
+  }
+
+  private async fetchWeather(ctx: ExecutionContext): Promise<{ temp: number; humidity: number; description: string }> {
+    const lat = FactoryTools.FACTORY_COORDS.lat;
+    const lon = FactoryTools.FACTORY_COORDS.lon;
+    const url = 'https://api.open-meteo.com/v1/forecast?latitude=' + lat + '&longitude=' + lon + '&current=temperature_2m,relative_humidity_2m,weather_code';
+    try {
+      const res = await fetch(url);
+      if (!res.ok) throw new Error('status ' + res.status);
+      const json: any = await res.json();
+      const cur = json && json.current ? json.current : {};
+      return {
+        temp: typeof cur.temperature_2m === 'number' ? cur.temperature_2m : 32,
+        humidity: typeof cur.relative_humidity_2m === 'number' ? cur.relative_humidity_2m : 85,
+        description: this.weatherDescription(cur.weather_code)
+      };
+    } catch (e) {
+      const msg = e instanceof Error ? e.message : String(e);
+      if (ctx && ctx.logger && ctx.logger.warn) ctx.logger.warn('Weather lookup failed, using fallback: ' + msg);
+      return { temp: 32, humidity: 85, description: 'Humid (fallback)' };
+    }
+  }
+
 
   @Tool({
     name: 'analyze_sensor_data',
@@ -175,6 +209,7 @@ export class FactoryTools {
     };
   }
 
+  @Widget('maintenance-history')
   @Tool({
     name: 'get_maintenance_history',
     description: 'Retrieve the historical repair and maintenance logs for a specific machine from SQLite.',
@@ -182,7 +217,6 @@ export class FactoryTools {
       machine_id: z.string().describe('The ID of the machine (e.g. MCH-004)'),
     }),
   })
-  @Widget('maintenance-history')
   async getMaintenanceHistory(input: { machine_id: string }, ctx: ExecutionContext) {
     ctx.logger.info(`Fetching maintenance logs for ${input.machine_id}`);
 
@@ -197,6 +231,7 @@ export class FactoryTools {
     };
   }
 
+  @Widget('manual-search')
   @Tool({
     name: 'search_machine_manual',
     description: 'Search machine manuals for warning codes, error codes, and troubleshooting steps.',
@@ -205,7 +240,6 @@ export class FactoryTools {
       query: z.string().describe('The search query or error code (e.g., E101, overheating)'),
     }),
   })
-  @Widget('manual-search')
   async searchMachineManual(
     input: { machine_id: string; query: string },
     ctx: ExecutionContext
@@ -263,10 +297,10 @@ export class FactoryTools {
   @Tool({
     name: 'analyze_root_cause',
     description:
-      'Diagnose the root cause of a machine failure by synthesizing sensor data, maintenance logs, and manual guidelines.',
+      'Diagnose the root cause of a machine failure by synthesizing sensor anomalies, maintenance logs, manual guidance, and live environmental conditions. Fetches live weather automatically when not supplied.',
     inputSchema: z.object({
       machine_id: z.string().describe('The ID of the machine'),
-      anomalies: z.array(z.any()).optional().describe('Flagged anomalies from sensor data'),
+      anomalies: z.array(z.any()).optional().describe('Flagged anomalies from analyze_sensor_data'),
       history: z.array(z.any()).optional().describe('Historical maintenance logs'),
       manual_matches: z.array(z.string()).optional().describe('Relevant excerpts from the manual'),
       external_weather: z
@@ -276,7 +310,7 @@ export class FactoryTools {
           description: z.string(),
         })
         .optional()
-        .describe('Current external weather conditions'),
+        .describe('Current external weather. If omitted, FactoryLens fetches live weather from Open-Meteo.'),
     }),
   })
   @Widget('root-cause-investigation')
@@ -290,88 +324,90 @@ export class FactoryTools {
     },
     ctx: ExecutionContext
   ) {
-    ctx.logger.info(`Analyzing root cause for ${input.machine_id}`);
+    ctx.logger.info('Analyzing root cause for ' + input.machine_id);
 
     const machineId = input.machine_id;
 
-    const machine = await this.dbService.get<any>(
-      'SELECT * FROM Machines WHERE machine_id = ?',
-      [machineId]
-    );
+    const machine = await this.dbService.get<any>('SELECT * FROM Machines WHERE machine_id = ?', [machineId]);
 
     if (!machine) {
-      throw new Error(`Machine ${machineId} not found in database`);
+      throw new Error('Machine ' + machineId + ' not found in database');
     }
 
     const anomalies = input.anomalies || [];
     const history = input.history || [];
-    const weather = input.external_weather || {
-      temp: 32,
-      humidity: 85,
-      description: 'Humid',
-    };
 
-    let rootCause = 'Unknown operating deviation.';
-    let confidence = 0.3;
-    const evidence: string[] = [];
-    const recommendations: string[] = [];
+    const weather = input.external_weather || (await this.fetchWeather(ctx));
 
-    const hasOverheating = anomalies.some(
-      (a) => Array.isArray(a.issues) && a.issues.some((i: string) => i.includes('Overheating'))
-    );
+    let maxTemp = 0;
+    let maxVib = 0;
+    let maxCurrent = 0;
+    anomalies.forEach((a) => {
+      const t = Number(a.temperature) || 0;
+      const v = Number(a.vibration) || 0;
+      const c = Number(a.current) || 0;
+      if (t > maxTemp) maxTemp = t;
+      if (v > maxVib) maxVib = v;
+      if (c > maxCurrent) maxCurrent = c;
+    });
 
-    const hasVibration = anomalies.some(
-      (a) => Array.isArray(a.issues) && a.issues.some((i: string) => i.includes('Vibration'))
-    );
+    const hasOverheating = maxTemp > 65;
+    const hasVibration = maxVib > 2.5;
+    const hasOvercurrent = maxCurrent > 5.5;
 
-    if (machineId === 'MCH-004') {
-      evidence.push('Sensor data shows temperature rising to 72.5°C, exceeding safety limit of 65.0°C.');
-      evidence.push('Vibration levels climbed to 3.9 mm/s, well above the 2.5 mm/s limit.');
-      evidence.push('Current draw spiked to 6.5A, exceeding the normal max limit of 5.5A.');
+    const evidence = [];
+    const recommendations = [];
+    let rootCause = 'No clear threshold breach detected; recommend a routine inspection.';
+    let confidence = 0.4;
 
-      const hasRecentBeltIssue = history.some((h) => {
-        const issue = String(h.issue || '').toLowerCase();
-        return issue.includes('belt') || issue.includes('motor');
-      });
-
-      if (hasRecentBeltIssue) {
-        evidence.push('Maintenance log from 2026-07-16 indicates motor overheating and belt slip inspection.');
+    if (anomalies.length > 0) {
+      if (maxTemp > 0) {
+        evidence.push('Sensor data shows temperature peaking at ' + maxTemp + 'C' + (maxTemp > 65 ? ', exceeding the 65C safety limit' : ''));
       }
-
-      if (weather && weather.humidity > 80) {
-        evidence.push(
-          `External high humidity (${weather.humidity}%) combined with indoor humidity is known to reduce drive pulley traction, aggravating slippage.`
-        );
+      if (maxVib > 0) {
+        evidence.push('Vibration peaked at ' + maxVib + ' mm/s' + (maxVib > 2.5 ? ', exceeding the 2.5 mm/s limit' : ''));
       }
+      if (maxCurrent > 0) {
+        evidence.push('Current draw peaked at ' + maxCurrent + 'A' + (maxCurrent > 5.5 ? ', exceeding the 5.5A normal maximum' : ''));
+      }
+    } else {
+      evidence.push('No live sensor anomalies were supplied; relying on maintenance history and manual context.');
+    }
 
+    const beltHistory = history.find((h) => {
+      const issue = String(h.issue || '').toLowerCase();
+      return issue.indexOf('belt') !== -1 || issue.indexOf('motor') !== -1;
+    });
+    if (beltHistory) {
+      evidence.push('Maintenance log (' + beltHistory.date + ') references belt/motor issue: "' + beltHistory.issue + '".');
+    }
+
+    if (weather && weather.humidity > 80) {
+      evidence.push('Live external humidity is ' + weather.humidity + '% (' + weather.description + '), which reduces drive-pulley traction and aggravates belt slippage.');
+    }
+
+    if (hasOverheating && hasVibration && hasOvercurrent) {
       rootCause =
-        'Drive Belt Slippage causing severe friction in the drive motor. The high load due to slippage is drawing excessive current, causing motor coil overheating, which is further exacerbated by the high ambient humidity levels.';
-
+        'Drive belt slippage is causing severe friction in the drive motor. The extra load draws excessive current, overheating the motor - worsened by high ambient humidity.';
       confidence = 0.92;
-
-      recommendations.push('Immediate emergency shutdown of Conveyor System MCH-004.');
+      recommendations.push('Immediate emergency shutdown of ' + machine.machine_name + ' (' + machineId + ').');
       recommendations.push('Inspect and replace the slipping drive belt.');
       recommendations.push('Clean and check the drive motor cooling fan for dust/blockages.');
       recommendations.push('Apply tensioner adjustments and verify drive pulley alignment.');
-    } else {
-      if (hasOverheating && hasVibration) {
-        rootCause =
-          'Bearing wear and lubrication failure. Friction in bearings is causing physical vibration and heat transfer to the spindle.';
-        confidence = 0.75;
-
-        recommendations.push('Perform immediate bearing lubrication check.');
-        recommendations.push('Inspect spindle bearings for physical pitting or wear.');
-      } else if (hasOverheating) {
-        rootCause = 'Cooling circuit malfunction or motor overload.';
-        confidence = 0.65;
-
-        recommendations.push('Check cooling fan operation and clear heat sink blockages.');
-      } else if (hasVibration) {
-        rootCause = 'Mechanical misalignment or mounting loose.';
-        confidence = 0.7;
-
-        recommendations.push('Tighten mounting bolts and perform shaft alignment check.');
-      }
+    } else if (hasOverheating && hasVibration) {
+      rootCause =
+        'Bearing wear and lubrication failure: friction in the bearings causes physical vibration and heat transfer to the spindle.';
+      confidence = 0.78;
+      recommendations.push('Perform immediate bearing lubrication check.');
+      recommendations.push('Inspect spindle bearings for physical pitting or wear.');
+    } else if (hasOverheating) {
+      rootCause = 'Cooling circuit malfunction or motor overload.';
+      confidence = 0.65;
+      recommendations.push('Check cooling fan operation and clear heat-sink blockages.');
+    } else if (hasVibration) {
+      rootCause = 'Mechanical misalignment or loose mounting.';
+      confidence = 0.7;
+      recommendations.push('Tighten mounting bolts and perform shaft-alignment check.');
     }
 
     return {
@@ -382,12 +418,14 @@ export class FactoryTools {
       diagnosis: {
         root_cause: rootCause,
         confidence_score: confidence,
-        evidence,
-        recommendations,
+        evidence: evidence,
+        recommendations: recommendations,
       },
+      weather: weather,
     };
   }
 
+  @Widget('business-impact')
   @Tool({
     name: 'predict_business_impact',
     description:
@@ -398,7 +436,6 @@ export class FactoryTools {
       severity: z.enum(['warning', 'critical']).describe('The severity of the issue'),
     }),
   })
-  @Widget('business-impact')
   async predictBusinessImpact(
     input: {
       machine_id: string;
@@ -435,10 +472,6 @@ export class FactoryTools {
       costPerHour = prodInfo.priority === 'high' ? 8000 : 3000;
     }
 
-    if (input.machine_id === 'MCH-004') {
-      downtimeHours = 3;
-      costPerHour = 12000;
-    }
 
     const estimatedLoss = downtimeHours * costPerHour;
 
@@ -460,6 +493,7 @@ export class FactoryTools {
     };
   }
 
+  @Widget('work-order')
   @Tool({
     name: 'create_work_order',
     description: 'Create a new maintenance work order ticket in SQLite database.',
@@ -470,7 +504,6 @@ export class FactoryTools {
       assigned_engineer: z.string().describe('The name of the engineer assigned to the task'),
     }),
   })
-  @Widget('work-order')
   async createWorkOrder(
     input: {
       machine_id: string;
@@ -511,6 +544,7 @@ export class FactoryTools {
     };
   }
 
+  @Widget('investigation-report')
   @Tool({
     name: 'generate_investigation_report',
     description: 'Compile a final maintenance work order investigation report in Markdown format.',
@@ -521,7 +555,6 @@ export class FactoryTools {
       work_order_id: z.number().describe('The ID of the created work order'),
     }),
   })
-  @Widget('investigation-report')
   async generateInvestigationReport(
     input: {
       machine_id: string;
