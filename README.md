@@ -1,8 +1,3 @@
-I've read through the repo. The current root `README.md` is still the NitroStack starter template, so below is a full replacement you can paste in. I'm in **Ask mode**, so I can't write the file directly — switch to **Agent mode** if you want me to apply it.
-
----
-
-```markdown
 # FactoryLens MCP
 
 FactoryLens is a Model Context Protocol (MCP) server for smart factory operations. It gives AI assistants structured access to machine telemetry, maintenance records, equipment manuals, and production schedules so they can investigate equipment failures end to end — from sensor anomaly detection through root cause analysis, business impact estimation, and work order creation.
@@ -37,7 +32,7 @@ FactoryLens addresses this by exposing factory data and investigation logic as M
 ## Tech Stack
 
 | Layer | Technologies |
-|-------|-------------|
+|---|---|
 | MCP Server | [NitroStack](https://nitrostack.ai) (`@nitrostack/core`, `@nitrostack/cli`) |
 | Language | TypeScript, ES2022 modules |
 | Validation | Zod |
@@ -51,37 +46,23 @@ FactoryLens addresses this by exposing factory data and investigation logic as M
 ## Architecture
 
 ```
-┌─────────────────────────────────────────────────────────────────┐
-│                     MCP Client (AI Assistant)                    │
-│              Cursor · Claude Desktop · NitroStudio               │
-└────────────────────────────┬────────────────────────────────────┘
-                             │ MCP (stdio / HTTP SSE)
-                             ▼
-┌─────────────────────────────────────────────────────────────────┐
-│                    factory-mcp-server (NitroStack)               │
-│  ┌──────────────┐  ┌─────────────────┐  ┌─────────────────────┐ │
-│  │ FactoryTools │  │ FactoryResources│  │   FactoryPrompts    │ │
-│  │  (7 tools)   │  │  (4 resources)  │  │    (3 prompts)      │ │
-│  └──────┬───────┘  └────────┬────────┘  └─────────────────────┘ │
-│         │                   │                                    │
-│         └─────────┬─────────┘                                    │
-│                   ▼                                              │
-│         ┌──────────────────┐    ┌────────────────────────────┐  │
-│         │  DatabaseService │    │  File System               │  │
-│         │  (SQLite)        │    │  uploads/ · resources/     │  │
-│         └──────────────────┘    └────────────────────────────┘  │
-└────────────────────────────┬────────────────────────────────────┘
-                             │ Widget data
-                             ▼
-┌─────────────────────────────────────────────────────────────────┐
-│              NitroStack Widgets (Next.js, port 3001)             │
-│     sensor-anomaly-dashboard · root-cause-investigation          │
-└─────────────────────────────────────────────────────────────────┘
+                     MCP Client (AI Assistant)
+              Cursor · Claude Desktop · NitroStudio
+                              |
+                     MCP (stdio / HTTP SSE)
+                              v
+                    factory-mcp-server (NitroStack)
+   FactoryTools (7 tools)  FactoryResources (4)  FactoryPrompts (3)
+                              |
+                 DatabaseService (SQLite)  +  File System (uploads/, resources/)
+                              |
+                        Widget data
+                              v
+              NitroStack Widgets (Next.js, port 3001)
+        sensor-anomaly-dashboard · root-cause-investigation
 
-┌─────────────────────────────────────────────────────────────────┐
-│           Frontend Demo Console (React + Vite, port 5173)          │
-│     Standalone UI — simulates the investigation workflow         │
-└─────────────────────────────────────────────────────────────────┘
+              Frontend Demo Console (React + Vite, port 5173)
+             Standalone UI — simulates the investigation workflow
 ```
 
 ### Investigation workflow
@@ -242,7 +223,7 @@ Widgets run on port **3001**.
 Copy `.env.example` to `.env` and adjust as needed:
 
 | Variable | Default | Description |
-|----------|---------|-------------|
+|---|---|---|
 | `NITRO_LOG_LEVEL` | `info` | Server log verbosity |
 | `NITROSTACK_APP_MODE` | `openai` | NitroStack app mode |
 | `MCP_TRANSPORT_TYPE` | `stdio` (dev) / `dual` (prod) | Transport: `stdio`, `http`, or `dual` |
@@ -258,13 +239,13 @@ No API keys are required for the core server; all data is local (SQLite + files)
 
 ## MCP Server Reference
 
-**Server name:** `factory-mcp-server`  
+**Server name:** `factory-mcp-server`
 **Version:** `1.0.0`
 
 ### Tools
 
 | Tool | Description | Widget |
-|------|-------------|--------|
+|---|---|---|
 | `analyze_sensor_data` | Parse sensor CSV and detect anomalies (temp > 65°C, vibration > 2.5 mm/s, current outside 4.0–5.5 A) | `sensor-anomaly-dashboard` |
 | `get_maintenance_history` | Fetch maintenance logs for a machine from SQLite | — |
 | `search_machine_manual` | Search manuals for error codes and troubleshooting text | — |
@@ -276,7 +257,7 @@ No API keys are required for the core server; all data is local (SQLite + files)
 ### Resources
 
 | URI | Description |
-|-----|-------------|
+|---|---|
 | `factory://manuals/{machine_id}` | Machine operating manual (plain text) |
 | `factory://maintenance/{machine_id}` | Maintenance history (JSON) |
 | `factory://production/schedule` | Active production schedules with machine status |
@@ -285,7 +266,7 @@ No API keys are required for the core server; all data is local (SQLite + files)
 ### Prompts
 
 | Prompt | Purpose |
-|--------|---------|
+|---|---|
 | `explain_to_technician` | Field advisory with LOTO guidelines and corrective steps |
 | `summarize_for_manager` | Executive summary with downtime, cost, and priority |
 | `emergency_shutdown_recommendation` | Critical shutdown advisory with safety commands |
@@ -335,7 +316,7 @@ Build first with `npm run build`, or point the command at `npm run dev` via your
 Built for the Factory MCP Hackathon.
 
 | Name | Role | GitHub |
-|------|------|--------|
+|---|---|---|
 | Jankaki R | Project author | [@janakir2006](https://github.com/janakir2006) |
 | Mokshitha Yarlagadda | Contributor | — |
 
@@ -356,15 +337,3 @@ MIT License — see project footer in the frontend demo.
 - [NitroStack Documentation](https://docs.nitrostack.ai)
 - [NitroStudio](https://nitrostack.ai/studio) — MCP testing and debugging
 - [Model Context Protocol](https://modelcontextprotocol.io)
-```
-
----
-
-### Notes from the codebase review
-
-1. **Three apps, one repo** — MCP server (`src/`), NitroStack widgets (`src/widgets/`), and a standalone demo UI (`frontend/`). Only the MCP server implements the real investigation logic.
-2. **Frontend is mock-driven** — `frontend/src/App.tsx` simulates uploads and analysis; it mirrors MCP outputs but does not call the server.
-3. **Starter template leftovers** — Root README, `calculator-result` widget, and parts of `widget-manifest.json` still reflect the NitroStack starter; the README above reflects the actual factory module.
-4. **Team section** — Git history shows **Jankaki R** as the commit author; your workspace user appears on a local `mokshitha-feature` branch. Adjust the team table to match your hackathon roster.
-
-If you want this written to `README.md` automatically, switch to Agent mode and ask me to apply it.
