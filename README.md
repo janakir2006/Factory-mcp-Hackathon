@@ -34,9 +34,9 @@ FactoryLens addresses this by exposing factory data and investigation logic as M
 | Layer | Technologies |
 |---|---|
 | MCP Server | [NitroStack](https://nitrostack.ai) (`@nitrostack/core`, `@nitrostack/cli`) |
-| Language | TypeScript, ES2022 modules |
+| Language | TypeScript, CSS |
 | Validation | Zod |
-| Database | SQLite3 (auto-seeded on first run) |
+| Database | SQLite3  |
 | Widgets | Next.js 14, React 18, `@nitrostack/widgets` |
 | Frontend Demo | React 19, Vite 8, Tailwind CSS v4, Chart.js |
 | Protocol | [Model Context Protocol](https://modelcontextprotocol.io) |
@@ -315,12 +315,12 @@ Build first with `npm run build`, or point the command at `npm run dev` via your
 
 Built for the Factory MCP Hackathon.
 
-| Name | Role | GitHub |
-|---|---|---|
-| Jankaki R | Project author | [@janakir2006](https://github.com/janakir2006) |
-| Mokshitha Yarlagadda | Contributor | — |
-
-> Update this table with your full hackathon team names and roles.
+| Name | GitHub |
+|------|--------|
+| Janaki R | [@janakir2006](https://github.com/janakir2006) |
+| Mokshitha Yarlagadda | [@Mokshitha2007](https://github.com/Mokshitha2007) |
+| Ajalya TM | [@ajalya](https://github.com/ajalya) |
+| Praneeth Kothamaddi | [@k-praneeth567](https://github.com/k-praneeth567) |
 
 Repository: [github.com/janakir2006/Factory-mcp-Hackathon](https://github.com/janakir2006/Factory-mcp-Hackathon)
 
