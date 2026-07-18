@@ -209,7 +209,7 @@ export class FactoryTools {
     };
   }
 
-  @Widget('maintenance-history')
+  
   @Tool({
     name: 'get_maintenance_history',
     description: 'Retrieve the historical repair and maintenance logs for a specific machine from SQLite.',
@@ -217,6 +217,7 @@ export class FactoryTools {
       machine_id: z.string().describe('The ID of the machine (e.g. MCH-004)'),
     }),
   })
+  @Widget('maintenance-history')
   async getMaintenanceHistory(input: { machine_id: string }, ctx: ExecutionContext) {
     ctx.logger.info(`Fetching maintenance logs for ${input.machine_id}`);
 
@@ -231,7 +232,7 @@ export class FactoryTools {
     };
   }
 
-  @Widget('manual-search')
+  
   @Tool({
     name: 'search_machine_manual',
     description: 'Search machine manuals for warning codes, error codes, and troubleshooting steps.',
@@ -240,6 +241,7 @@ export class FactoryTools {
       query: z.string().describe('The search query or error code (e.g., E101, overheating)'),
     }),
   })
+  @Widget('manual-search')
   async searchMachineManual(
     input: { machine_id: string; query: string },
     ctx: ExecutionContext
@@ -425,7 +427,7 @@ export class FactoryTools {
     };
   }
 
-  @Widget('business-impact')
+  
   @Tool({
     name: 'predict_business_impact',
     description:
@@ -436,6 +438,7 @@ export class FactoryTools {
       severity: z.enum(['warning', 'critical']).describe('The severity of the issue'),
     }),
   })
+  @Widget('business-impact')
   async predictBusinessImpact(
     input: {
       machine_id: string;
@@ -493,7 +496,7 @@ export class FactoryTools {
     };
   }
 
-  @Widget('work-order')
+  
   @Tool({
     name: 'create_work_order',
     description: 'Create a new maintenance work order ticket in SQLite database.',
@@ -504,6 +507,7 @@ export class FactoryTools {
       assigned_engineer: z.string().describe('The name of the engineer assigned to the task'),
     }),
   })
+  @Widget('work-order')
   async createWorkOrder(
     input: {
       machine_id: string;
