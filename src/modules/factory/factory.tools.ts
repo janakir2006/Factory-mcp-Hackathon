@@ -57,7 +57,10 @@ export class FactoryTools {
     ctx.logger.info('Analyzing sensor data');
 
     let csvContent = '';
-    const uploadsDir = path.join(process.cwd(), 'uploads');
+    const uploadsDir =
+  process.env.NODE_ENV === 'production'
+    ? path.join('/tmp', 'factorylens-uploads')
+    : path.join(process.cwd(), 'uploads');
 
     if (!fs.existsSync(uploadsDir)) {
       fs.mkdirSync(uploadsDir, { recursive: true });
@@ -336,7 +339,20 @@ export class FactoryTools {
       throw new Error('Machine ' + machineId + ' not found in database');
     }
 
-    const anomalies = input.anomalies || [];
+    let anomalies = input.anomalies || [];
+
+if (!Array.isArray(anomalies)) {
+  anomalies = [];
+}
+
+if (anomalies.length === 0) {
+  try {
+    const sensorResult: any = await this.analyzeSensorData({}, ctx);
+    anomalies = sensorResult.anomalies || [];
+  } catch (err: any) {
+    ctx.logger.warn(`Could not auto-load sensor anomalies: ${err.message}`);
+  }
+}
     const history = input.history || [];
 
     const weather = input.external_weather || (await this.fetchWeather(ctx));
@@ -345,13 +361,28 @@ export class FactoryTools {
     let maxVib = 0;
     let maxCurrent = 0;
     anomalies.forEach((a) => {
-      const t = Number(a.temperature) || 0;
-      const v = Number(a.vibration) || 0;
-      const c = Number(a.current) || 0;
-      if (t > maxTemp) maxTemp = t;
-      if (v > maxVib) maxVib = v;
-      if (c > maxCurrent) maxCurrent = c;
-    });
+  let t = Number(a.temperature) || 0;
+  let v = Number(a.vibration) || 0;
+  let c = Number(a.current) || 0;
+
+  // Support AI-generated anomaly format:
+  // { type: "temperature", value: 72.5 }
+  if (a.type === 'temperature') {
+    t = Number(a.value) || 0;
+  }
+
+  if (a.type === 'vibration') {
+    v = Number(a.value) || 0;
+  }
+
+  if (a.type === 'current') {
+    c = Number(a.value) || 0;
+  }
+
+  if (t > maxTemp) maxTemp = t;
+  if (v > maxVib) maxVib = v;
+  if (c > maxCurrent) maxCurrent = c;
+});
 
     const hasOverheating = maxTemp > 65;
     const hasVibration = maxVib > 2.5;
