@@ -95,12 +95,128 @@ export class DatabaseService {
 
           // Seed Maintenance history
           const maintenanceLogs = [
-            ['MCH-001', '2026-06-15', 'Spindle vibration detected', 'Replaced spindle bearings and recalibrated spindle axis', 'Sarah Connor'],
-            ['MCH-002', '2026-07-02', 'Robot joint 3 error code 44', 'Cleaned joint 3 encoder disc and updated firmware', 'John Doe'],
-            ['MCH-003', '2026-05-10', 'Heating element failure', 'Replaced heating element band 3 and thermocouple sensor', 'Sarah Connor'],
-            ['MCH-004', '2026-07-10', 'Conveyor belt slip', 'Tensioned belt and replaced drive pulley wheel', 'Alex Mercer'],
-            ['MCH-004', '2026-07-16', 'Motor overheating alert', 'Inspected cooling fan, cleaned dust accumulation. Temp still high.', 'Alex Mercer']
-          ];
+  // MCH-001 - CNC Milling Machine
+  [
+    'MCH-001',
+    '2026-05-22',
+    'Coolant flow reduced during long milling cycle',
+    'Cleaned coolant filter and flushed coolant nozzle. Flow restored to normal.',
+    'Sarah Connor'
+  ],
+  [
+    'MCH-001',
+    '2026-06-15',
+    'Spindle vibration detected',
+    'Replaced spindle bearings and recalibrated spindle axis.',
+    'Sarah Connor'
+  ],
+  [
+    'MCH-001',
+    '2026-07-05',
+    'Tool chatter marks observed on finished gear surface',
+    'Balanced tool holder, tightened fixture clamps, and reduced feed rate by 8%.',
+    'David Kim'
+  ],
+
+  // MCH-002 - Robotic Welder
+  [
+    'MCH-002',
+    '2026-06-08',
+    'Arc instability during chassis frame weld',
+    'Replaced worn contact tip, cleaned torch nozzle, and checked shielding gas flow.',
+    'John Doe'
+  ],
+  [
+    'MCH-002',
+    '2026-07-02',
+    'Robot joint 3 error code 44',
+    'Cleaned joint 3 encoder disc and updated firmware.',
+    'John Doe'
+  ],
+  [
+    'MCH-002',
+    '2026-07-12',
+    'Joint servo temperature warning during high duty cycle',
+    'Cleaned servo cooling fan and applied joint lubrication.',
+    'Priya Nair'
+  ],
+
+  // MCH-003 - Injection Molder
+  [
+    'MCH-003',
+    '2026-05-10',
+    'Heating element failure',
+    'Replaced heating element band 3 and thermocouple sensor.',
+    'Sarah Connor'
+  ],
+  [
+    'MCH-003',
+    '2026-06-21',
+    'Hydraulic oil temperature rising above normal range',
+    'Cleaned oil cooler fins and replaced hydraulic oil filter.',
+    'Vikram Menon'
+  ],
+  [
+    'MCH-003',
+    '2026-07-08',
+    'Injection pressure fluctuation causing inconsistent part weight',
+    'Cleaned nozzle, inspected screw tip, and recalibrated pressure sensor.',
+    'Vikram Menon'
+  ],
+
+  // MCH-004 - Conveyor System
+  [
+    'MCH-004',
+    '2026-06-28',
+    'Intermittent belt tracking deviation',
+    'Adjusted belt tracking rollers and inspected side guides.',
+    'Alex Mercer'
+  ],
+  [
+    'MCH-004',
+    '2026-07-10',
+    'Conveyor belt slip',
+    'Tensioned belt and replaced drive pulley wheel.',
+    'Alex Mercer'
+  ],
+  [
+    'MCH-004',
+    '2026-07-16',
+    'Motor overheating alert',
+    'Inspected cooling fan, cleaned dust accumulation. Temperature remained higher than expected.',
+    'Alex Mercer'
+  ],
+
+  // MCH-005 - Hydraulic Press
+  [
+    'MCH-005',
+    '2026-05-30',
+    'Hydraulic pressure drop during press cycle',
+    'Inspected hydraulic lines, replaced worn seal, and verified pump output pressure.',
+    'Meera Iyer'
+  ],
+  [
+    'MCH-005',
+    '2026-06-18',
+    'Ram movement irregular during downward stroke',
+    'Bled hydraulic line, replaced oil filter, and lubricated guide rails.',
+    'Meera Iyer'
+  ],
+  [
+    'MCH-005',
+    '2026-07-11',
+    'Hydraulic pump vibration above normal range',
+    'Checked suction line, tightened pump mounting bolts, and inspected coupling alignment.',
+    'Arjun Rao'
+  ],
+  [
+    'MCH-005',
+    '2026-07-15',
+    'Oil temperature warning during heavy press operation',
+    'Cleaned oil cooler, topped hydraulic oil level, and scheduled pump bearing inspection.',
+    'Arjun Rao'
+  ]
+];
 
           const maintStmt = this.db!.prepare(`
             INSERT INTO Maintenance (machine_id, date, issue, repair, engineer) VALUES (?, ?, ?, ?, ?)
